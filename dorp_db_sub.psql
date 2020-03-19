@@ -1,0 +1,4 @@
+ select * from pglogical.show_subscription_status();
+
+# SELECT pglogical.drop_subscription('region_12_subscription');
+

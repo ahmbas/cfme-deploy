@@ -1,0 +1,115 @@
+- hosts: all
+  gather_facts: no
+  tasks:
+  - name: land key
+    copy:
+      src: v2_key
+      dest: /var/www/miq/vmdb/certs/v2_key
+
+- hosts: database_primary
+  gather_facts: no
+  tasks:
+  - name: setup database
+    shell: |
+      appliance_console_cli -U {{database_user}} \
+      {% if log_disk %}
+      --logdisk=={{log_disk}} \
+      {% endif %}
+      {% if tmp_disk %}
+      --tmpdisk={{tmp_disk}} \
+      {% endif %}
+      --internal \
+      --standalone \
+      --fetch-key=localhost \
+      --sshlogin=root \
+      --sshpassword=smartvm \
+      --password={{database_password}} \
+      --timezone={{timezone}} \
+      --cluster-node-number={{cluster_id}} \
+      --replication=primary \
+      --dbdisk={{database_disk}}
+
+- hosts: workers
+  serial:
+  - 1
+  - "100%"
+  tasks:
+  - name: setup workers
+    shell: |
+      appliance_console_cli \
+      {% if log_disk %}
+      --logdisk=={{log_disk}} \
+      {% endif %}
+      {% if tmp_disk %}
+      --tmpdisk={{tmp_disk}} \
+      {% endif %}
+      --hostname={{ database_ip }} \
+      --username={{database_user}} \
+      --password={{database_password}} \
+      --fetch-key=localhost \
+      --sshlogin=root \
+      --sshpassword=smartvm \
+      {%if inventory_hostname == ansible_play_hosts_all[0] %}
+      --region={{region}} \
+      {% endif %}
+      --timezone={{timezone}}
+
+- hosts: database_primary
+  gather_facts: no
+  tasks:
+  - name: setup DB primary replication
+    shell: |
+      appliance_console_cli -U {{database_user}} \
+      --password={{database_password}} \
+      --cluster-node-number=1 \
+      --replication=primary
+
+- hosts: database_secondary
+  tasks:
+  - name: setup slaves
+    shell: |
+      appliance_console_cli \
+      {% if log_disk %}
+      --logdisk=={{log_disk}} \
+      {% endif %}
+      {% if tmp_disk %}
+      --tmpdisk={{tmp_disk}} \
+      {% endif %}
+      --username={{database_user}} \
+      --cluster-node-number={{groups['database_secondary'].index(inventory_hostname) + 2}} \
+      --primary-host={{database_ip}} \
+      --standby-host={{ ansible_default_ipv4.address }} \
+      --password={{database_password}} \
+      --fetch-key=localhost \
+      --sshlogin=root \
+      --sshpassword=smartvm \
+      --replication=standby \
+      --timezone={{timezone}} \
+      --dbdisk={{database_disk}} \
+      --auto-failover
+
+- hosts: workers
+  tasks:
+  - name: start failover monitor workers
+    service:
+      name: evm-failover-monitor
+      state: restarted
+  - name: restart evm
+    service:
+      name: evmserverd
+      state: restarted
+
+- hosts: all
+  tasks:
+  - name: drop lockdown with scap rb
+    copy:
+      src: lockdown.rb
+      dest: /var/www/miq/vmdb/lockdown.rb
+
+  - name: scap lockdown
+    shell: /var/www/miq/vmdb/bin/rails runner /var/www/miq/vmdb/lockdown.rb
+
+  - name: remove scap rb
+    file:
+      path: /var/www/miq/vmdb/lockdown.rb
+      state: absent

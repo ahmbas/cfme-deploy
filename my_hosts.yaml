@@ -1,0 +1,36 @@
+[database_primary]
+192.168.1.108
+
+[database_secondary]
+192.168.1.109
+
+[workers]
+192.168.1.110
+192.168.1.111
+
+[all:vars]
+ansible_ssh_user=root
+ansible_ssh_pass=smartvm
+timezone=Asia/Dubai
+database_user=root
+database_password=smartvm
+region=99
+#Primary DB IP
+database_ip = 192.168.1.108
+
+
+[database_primary:vars]
+cluster_id=1
+database_disk=/dev/sdb
+log_disk=
+tmp_disk=
+
+[database_secondary:vars]
+cluster_id=2
+database_disk=/dev/sdb
+log_disk=
+tmp_disk=
+
+[workers:vars]
+log_disk=
+tmp_disk=
