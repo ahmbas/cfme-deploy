@@ -20,13 +20,11 @@ database_ip = 192.168.1.108
 
 
 [database_primary:vars]
-cluster_id=1
 database_disk=/dev/sdb
 log_disk=
 tmp_disk=
 
 [database_secondary:vars]
-cluster_id=2
 database_disk=/dev/sdb
 log_disk=
 tmp_disk=
