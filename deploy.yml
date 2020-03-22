@@ -94,6 +94,8 @@
     service:
       name: evm-failover-monitor
       state: restarted
+      enabled: yes
+
   - name: restart evm
     service:
       name: evmserverd
